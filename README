@@ -1,3 +1,5 @@
+isc dhcp convert config file to powershell
+
 DISCLAIMER: made with precious help from ChatGPT Version 1.2024.268
 
 Save the PHP script as convert_dhcp_config.php.
