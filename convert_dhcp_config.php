@@ -2,7 +2,6 @@
 /**
  * Usage: php convert_dhcp_config.php path/to/dhcpd.conf
  */
-
 if ($argc !== 2) {
     echo "Usage: php {$argv[0]} path/to/dhcpd.conf\n";
     exit(1);
@@ -218,8 +217,8 @@ function netmaskToCIDR($netmask) {
 // Now, generate PowerShell commands
 $psCommands = [];
 
-// Track if option 119 has been defined
-$option119Defined = false;
+// Inițializăm $definedOptions ca un array gol
+$definedOptions = [];
 
 foreach ($allSubnets as $subnet) {
     $scopeName = $subnet['shared-network'];
@@ -273,28 +272,34 @@ foreach ($allSubnets as $subnet) {
             $optionValues = array_map('trim', explode(',', $optionValue));
             $valueString = "(@(" . implode(',', array_map(function($v) { return "'$v'"; }, $optionValues)) . "))";
 
-            // If option ID 119, define it first if not already defined
-            if ($optionId == '119' && !$option119Defined) {
-                $psCommands[] = "Add-DhcpServerv4OptionDefinition -OptionId 119 -Name 'Domain Search List' -Type String";
-                $option119Defined = true;
+            // Dacă opțiunea nu a fost definită deja, o definim
+            if (!in_array($optionId, $definedOptions)) {
+                // Verificăm dacă opțiunea există deja
+                $psCommands[] = "\$existingOption = Get-DhcpServerv4OptionDefinition -OptionId $optionId -ErrorAction SilentlyContinue";
+                $psCommands[] = "if (-not \$existingOption) {";
+                // Definim opțiunea pe baza ID-ului
+                if ($optionId == '119') {
+                    $psCommands[] = "    Add-DhcpServerv4OptionDefinition -OptionId 119 -Name 'Domain Search List' -Type String";
+                }
+                // Poți adăuga definiții pentru alte opțiuni aici, dacă este necesar
+                $psCommands[] = "}";
+                $definedOptions[] = $optionId;
             }
 
             $psCommands[] = "Set-DhcpServerv4OptionValue -ScopeId '$subnetAddress' -OptionId $optionId -Value $valueString";
         }
     }
 
-    // Note: Windows DHCP server does not support multiple ranges within a single scope. You may need to adjust your ranges accordingly.
-
-    // Add Reservations
+    // Adăugăm Rezervările
     foreach ($subnet['hosts'] as $host) {
-        // Format ClientId (MAC address without delimiters, uppercase)
+        // Formatăm ClientId (adresa MAC fără delimitatori, majuscule)
         $clientId = strtoupper(str_replace([':', '-'], '', $host['hardware ethernet']));
         $description = addslashes($host['name']);
         $psCommands[] = "Add-DhcpServerv4Reservation -ScopeId '$subnetAddress' -IPAddress '{$host['fixed-address']}' -ClientId '$clientId' -Name '$description' -Description '$description'";
     }
 }
 
-// Output PowerShell commands
+// Afișăm comenzile PowerShell
 foreach ($psCommands as $cmd) {
     echo $cmd . "\n";
 }
