@@ -1,0 +1,10 @@
+Save the PHP script as convert_dhcp_config.php.
+Run the script on your local machine:
+
+php convert_dhcp_config.php path/to/your/dhcpd.conf > dhcp_commands.ps1
+
+Execute the PowerShell Script:
+Run the script on your Windows Server 2022 DHCP server with administrative privileges:
+
+.\dhcp_commands.ps1
+
